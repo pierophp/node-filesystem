@@ -180,24 +180,57 @@ new LocalAdapter('my-root-folder', 'my-subfolder');
 
 ### Aws S3
 
-You need install the oficial AWS SDK:
+You need install the official AWS SDK v3:
 
 ```
-yarn add aws-sdk
+yarn add @aws-sdk/client-s3
 ```
 
 ```typescript
-import * as AWS from 'aws-sdk';
+import { S3Client } from '@aws-sdk/client-s3';
 import { S3Adapter } from 'node-filesystem';
 
-const s3Client = new AWS.S3({
-  accessKeyId: 'my-aws-access-key',
-  secretAccessKey: 'my-aws-secret-key',
+const s3Client = new S3Client({
+  credentials: {
+    accessKeyId: 'my-aws-access-key',
+    secretAccessKey: 'my-aws-secret-key',
+  },
   region: 'my-aws-region',
 });
 
 new S3Adapter(s3Client, 'my-bucket', 'my-subfolder');
 ```
+
+### Bun S3 (Native)
+
+If you're using [Bun](https://bun.sh) runtime (>= 1.1.30), you can use the native Bun S3 adapter which has better performance:
+
+No additional dependencies needed - Bun has built-in S3 support!
+
+```typescript
+import { BunAdapter } from 'node-filesystem';
+
+const adapter = new BunAdapter(
+  {
+    accessKeyId: 'my-aws-access-key',
+    secretAccessKey: 'my-aws-secret-key',
+    region: 'my-aws-region',
+    bucket: 'my-bucket',
+    endpoint: 'https://s3.amazonaws.com', // optional, for S3-compatible services
+  },
+  'my-subfolder', // optional prefix
+);
+```
+
+**Benefits of BunAdapter:**
+
+- No external dependencies required
+- Better performance with Bun's native implementation
+- Smaller bundle size
+- Native stream support
+- Compatible with S3 and S3-compatible services (DigitalOcean Spaces, Cloudflare R2, etc.)
+
+**Note:** This adapter requires Bun runtime and won't work in Node.js.
 
 ### Google Cloud Storage
 

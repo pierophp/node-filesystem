@@ -1,8 +1,19 @@
-import * as AWS from 'aws-sdk';
+import {
+  S3Client,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  HeadObjectCommand,
+  GetObjectAclCommand,
+  CopyObjectCommand,
+  PutObjectAclCommand,
+  ListObjectsCommand,
+} from '@aws-sdk/client-s3';
 import * as ltrim from 'ltrim';
 import * as mime from 'mime';
 import * as rtrim from 'rtrim';
-import { createClient } from 's3-client';
 import { AdapterInterface } from '../adapter.interface';
 import { ListContentsResponse } from '../response/list.contents.response';
 import { UtilHelper } from '../util.helper';
@@ -12,9 +23,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   public readonly PUBLIC_GRANT_URI =
     'http://acs.amazonaws.com/groups/global/AllUsers';
 
-  protected client: AWS.S3;
-
-  protected s3Client: any;
+  protected client: S3Client;
 
   protected bucket: string;
 
@@ -45,7 +54,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   ];
 
   constructor(
-    client: AWS.S3,
+    client: S3Client,
     bucket: string,
     prefix: string = '',
     options: any = {},
@@ -53,7 +62,6 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
     super();
 
     this.client = client;
-    this.s3Client = createClient({ s3Client: client });
     this.bucket = bucket;
     this.options = options;
     this.setPathPrefix(prefix);
@@ -67,11 +75,11 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
     this.bucket = bucket;
   }
 
-  public getClient(): AWS.S3 {
+  public getClient(): S3Client {
     return this.client;
   }
 
-  protected normalizeResponse(response: any, path: string) {
+  protected async normalizeResponse(response: any, path: string) {
     let result: any = {
       path: path
         ? path
@@ -85,7 +93,14 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
     }
 
     if (response.Body) {
-      response.Body = response.Body.toString();
+      // In AWS SDK v3, Body is a stream, so we need to convert it to string
+      if (typeof response.Body === 'string') {
+        response.Body = response.Body;
+      } else if (Buffer.isBuffer(response.Body)) {
+        response.Body = response.Body.toString();
+      } else if (response.Body.transformToString) {
+        response.Body = await response.Body.transformToString();
+      }
     }
 
     if (result.path.substr(-1) === '/') {
@@ -123,29 +138,32 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
 
     const response: ListContentsResponse[] = [];
 
-    return new Promise<ListContentsResponse[]>(async (done, reject) => {
-      await this.getClient().listObjectsV2(s3Params, (err, data: any) => {
-        if (err) {
-          reject(err);
-        } else {
-          data.Contents.forEach(element => {
-            response.push(this.normalizeResponse(element, ''));
-          });
+    try {
+      const command = new ListObjectsV2Command(s3Params);
+      const data = await this.getClient().send(command);
 
-          data.CommonPrefixes.forEach(element => {
-            response.push(this.normalizeResponse(element, ''));
-          });
-
-          const responseEmulated = UtilHelper.emulateDirectories(
-            response,
-          ).filter(item => {
-            return rtrim(item.path, '/') !== rtrim(directory, '/');
-          });
-
-          done(responseEmulated);
+      if (data.Contents) {
+        for (const element of data.Contents) {
+          response.push(await this.normalizeResponse(element, ''));
         }
-      });
-    });
+      }
+
+      if (data.CommonPrefixes) {
+        for (const element of data.CommonPrefixes) {
+          response.push(await this.normalizeResponse(element, ''));
+        }
+      }
+
+      const responseEmulated = UtilHelper.emulateDirectories(response).filter(
+        (item) => {
+          return rtrim(item.path, '/') !== rtrim(directory, '/');
+        },
+      );
+
+      return responseEmulated;
+    } catch (err) {
+      throw err;
+    }
   }
 
   public async write(
@@ -178,19 +196,14 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
       ...options,
     };
 
-    return new Promise<any>(async (done, reject) => {
-      const response = await this.getClient().putObject(
-        s3Params,
-        (err, data) => {
-          if (err) {
-            reject(err);
-          } else {
-            s3Params.Body = contents;
-            done(this.normalizeResponse(s3Params, path));
-          }
-        },
-      );
-    });
+    try {
+      const command = new PutObjectCommand(s3Params);
+      await this.getClient().send(command);
+      s3Params.Body = contents;
+      return await this.normalizeResponse(s3Params, path);
+    } catch (err) {
+      throw err;
+    }
   }
 
   public async read(path: string): Promise<any | false> {
@@ -204,65 +217,47 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
       ...this.options,
     };
 
-    return new Promise<any>(async (done, reject) => {
-      const response = await this.getClient().getObject(
-        s3Params,
-        (err, data) => {
-          if (err) {
-            reject(err);
-          } else {
-            done(this.normalizeResponse(data, path));
-          }
-        },
-      );
-    });
+    try {
+      const command = new GetObjectCommand(s3Params);
+      const data = await this.getClient().send(command);
+      return await this.normalizeResponse(data, path);
+    } catch (err) {
+      throw err;
+    }
   }
 
   public async delete(path: string): Promise<boolean> {
     const key = this.applyPathPrefix(path);
 
-    return new Promise<boolean>(done => {
-      if (path[path.length - 1] === '/') {
-        done(false);
-        return;
-      }
+    if (path[path.length - 1] === '/') {
+      return false;
+    }
 
-      this.getClient().deleteObject(
-        {
-          Bucket: this.getBucket(),
-          Key: key,
-        },
-        (err, data) => {
-          if (err) {
-            done(false);
-            return;
-          }
-
-          done(true);
-        },
-      );
-    });
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.getBucket(),
+        Key: key,
+      });
+      await this.getClient().send(command);
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   public async has(path: string): Promise<boolean> {
     const key = this.applyPathPrefix(path);
 
-    return new Promise<boolean>(done => {
-      this.getClient().headObject(
-        {
-          Bucket: this.getBucket(),
-          Key: key,
-        },
-        async (err, data) => {
-          if (err) {
-            done(await this.doesDirectoryExist(key));
-            return;
-          }
-
-          done(true);
-        },
-      );
-    });
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.getBucket(),
+        Key: key,
+      });
+      await this.getClient().send(command);
+      return true;
+    } catch (err) {
+      return await this.doesDirectoryExist(key);
+    }
   }
 
   public async readStream(path: string): Promise<any | false> {
@@ -272,22 +267,16 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   public async getMetadata(path: string): Promise<any> {
     const key = this.applyPathPrefix(path);
 
-    return new Promise<any>(done => {
-      this.getClient().headObject(
-        {
-          Bucket: this.getBucket(),
-          Key: key,
-        },
-        (err, data) => {
-          if (err) {
-            done(false);
-            return;
-          }
-
-          done(this.normalizeResponse(data, path));
-        },
-      );
-    });
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.getBucket(),
+        Key: key,
+      });
+      const data = await this.getClient().send(command);
+      return await this.normalizeResponse(data, path);
+    } catch (err) {
+      return false;
+    }
   }
 
   public async getSize(path: string): Promise<any> {
@@ -309,35 +298,33 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   protected async getRawVisibility(path: string): Promise<any | false> {
     const key = this.applyPathPrefix(path);
 
-    return new Promise<string>(done => {
-      this.getClient().getObjectAcl(
-        {
-          Bucket: this.getBucket(),
-          Key: key,
-        },
-        (err, data: any) => {
-          let visibility = 'private';
-          if (err) {
-            console.log('getRawVisibilityError', err);
-            done(visibility);
-            return;
+    try {
+      const command = new GetObjectAclCommand({
+        Bucket: this.getBucket(),
+        Key: key,
+      });
+      const data = await this.getClient().send(command);
+
+      let visibility = 'private';
+
+      if (data.Grants) {
+        data.Grants.forEach((grant) => {
+          if (
+            grant.Grantee &&
+            grant.Grantee.URI &&
+            grant.Grantee.URI === this.PUBLIC_GRANT_URI &&
+            grant.Permission === 'READ'
+          ) {
+            visibility = 'public';
           }
+        });
+      }
 
-          data.Grants.forEach(grant => {
-            if (
-              grant.Grantee &&
-              grant.Grantee.URI &&
-              grant.Grantee.URI === this.PUBLIC_GRANT_URI &&
-              grant.Permission === 'READ'
-            ) {
-              visibility = 'public';
-            }
-          });
-
-          done(visibility);
-        },
-      );
-    });
+      return visibility;
+    } catch (err) {
+      console.log('getRawVisibilityError', err);
+      return 'private';
+    }
   }
 
   public async writeStream(
@@ -375,53 +362,66 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   public async copy(path: string, newpath: string): Promise<boolean> {
     const key = this.applyPathPrefix(newpath);
 
-    return new Promise<boolean>(async done => {
-      this.getClient().copyObject(
-        {
-          ...{
-            Bucket: this.getBucket(),
-            Key: key,
-            CopySource: encodeURIComponent(
-              this.getBucket() + '/' + this.applyPathPrefix(path),
-            ),
-            ACL:
-              (await this.getRawVisibility(path)) === 'public'
-                ? 'public-read'
-                : 'private',
-          },
-          ...this.options,
+    try {
+      const command = new CopyObjectCommand({
+        ...{
+          Bucket: this.getBucket(),
+          Key: key,
+          CopySource: encodeURIComponent(
+            this.getBucket() + '/' + this.applyPathPrefix(path),
+          ),
+          ACL:
+            (await this.getRawVisibility(path)) === 'public'
+              ? 'public-read'
+              : 'private',
         },
-        (err, data) => {
-          if (err) {
-            done(false);
-            return;
-          }
-
-          done(true);
-        },
-      );
-    });
+        ...this.options,
+      });
+      await this.getClient().send(command);
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   public async deleteDir(dirname: string): Promise<boolean> {
-    const key = rtrim(this.applyPathPrefix(dirname), '/') + '/';
+    const prefix = rtrim(this.applyPathPrefix(dirname), '/') + '/';
 
-    const s3Params = {
-      Bucket: this.getBucket(),
-      Key: key,
-    };
+    try {
+      let continuationToken: string | undefined;
 
-    const deleter = this.s3Client.deleteDir(s3Params);
+      do {
+        // List all objects with the prefix
+        const listCommand = new ListObjectsV2Command({
+          Bucket: this.getBucket(),
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        });
 
-    return new Promise<boolean>(done => {
-      deleter.on('error', err => {
-        done(false);
-      });
+        const listResult = await this.getClient().send(listCommand);
 
-      deleter.on('end', () => {
-        done(true);
-      });
-    });
+        if (!listResult.Contents || listResult.Contents.length === 0) {
+          return true;
+        }
+
+        // Delete objects in batch
+        const deleteCommand = new DeleteObjectsCommand({
+          Bucket: this.getBucket(),
+          Delete: {
+            Objects: listResult.Contents.map((item) => ({ Key: item.Key! })),
+            Quiet: true,
+          },
+        });
+
+        await this.getClient().send(deleteCommand);
+
+        continuationToken = listResult.NextContinuationToken;
+      } while (continuationToken);
+
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   public async createDir(dirname: string, config?: any): Promise<any | false> {
@@ -433,48 +433,36 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
     visibility: 'public' | 'private',
   ): Promise<any | false> {
     const key = this.applyPathPrefix(path);
-    return new Promise<any | false>(done => {
-      this.getClient().putObjectAcl(
-        {
-          Bucket: this.getBucket(),
-          Key: key,
-          ACL: visibility === 'public' ? 'public-read' : 'private',
-        },
-        (err, data: any) => {
-          if (err) {
-            done(false);
-            return;
-          }
 
-          done({ path, visibility });
-        },
-      );
-    });
+    try {
+      const command = new PutObjectAclCommand({
+        Bucket: this.getBucket(),
+        Key: key,
+        ACL: visibility === 'public' ? 'public-read' : 'private',
+      });
+      await this.getClient().send(command);
+      return { path, visibility };
+    } catch (err) {
+      return false;
+    }
   }
 
   protected async doesDirectoryExist(location: string): Promise<boolean> {
-    return new Promise<any | false>(done => {
-      this.getClient().listObjects(
-        {
-          Bucket: this.getBucket(),
-          Prefix: rtrim(location, '/') + '/',
-          MaxKeys: 1,
-        },
-        (err, data: any) => {
-          if (err) {
-            done(false);
-            return;
-          }
+    try {
+      const command = new ListObjectsCommand({
+        Bucket: this.getBucket(),
+        Prefix: rtrim(location, '/') + '/',
+        MaxKeys: 1,
+      });
+      const data = await this.getClient().send(command);
 
-          done(
-            !!(
-              (data.Contents && data.Contents.length) ||
-              (data.CommonPrefixes && data.CommonPrefixes.length)
-            ),
-          );
-        },
+      return !!(
+        (data.Contents && data.Contents.length) ||
+        (data.CommonPrefixes && data.CommonPrefixes.length)
       );
-    });
+    } catch (err) {
+      return false;
+    }
   }
 
   public applyPathPrefix(path) {

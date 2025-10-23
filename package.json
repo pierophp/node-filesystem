@@ -1,6 +1,6 @@
 {
   "name": "node-filesystem",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "A node filesystem manager",
   "main": "index.js",
   "repository": "git@github.com:beautybrands/node-filesystem.git",
@@ -25,17 +25,17 @@
     "coverage": "cd coverage && python -m SimpleHTTPServer 8182"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.679.0",
     "@google-cloud/storage": "^6.4.1",
-    "aws-sdk": "^2.166.0",
     "fs-extra": "^4.0.3",
     "lodash": "^4.17.21",
     "ltrim": "^1.0.0",
     "mime": "^2.3.1",
     "node-dir": "^0.1.17",
-    "rtrim": "^1.0.0",
-    "s3-client": "^4.4.0"
+    "rtrim": "^1.0.0"
   },
   "devDependencies": {
+    "@types/bun": "^1.1.13",
     "@types/chai": "^4.0.5",
     "@types/mocha": "^2.2.44",
     "@types/node": "^18.7.6",
