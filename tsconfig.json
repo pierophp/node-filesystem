@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "declaration": true,
     "noImplicitAny": false,
     "removeComments": true,
@@ -12,7 +15,6 @@
     "sourceMap": true,
     "allowJs": false,
     "strict": true,
-    "moduleResolution": "node",
     "outDir": "dist",
     "baseUrl": "./src/",
     "skipLibCheck": true,

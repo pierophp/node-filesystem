@@ -1,6 +1,6 @@
 import { merge } from 'lodash';
 import { normalize } from 'path';
-import rtrim from 'rtrim';
+import * as rtrim from 'rtrim';
 import {
   readdir,
   stat,

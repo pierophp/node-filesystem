@@ -1,5 +1,5 @@
 import { uniq, difference, orderBy } from 'lodash';
-import rtrim from 'rtrim';
+import * as rtrim from 'rtrim';
 
 export class UtilHelper {
   public static pathinfo(path) {

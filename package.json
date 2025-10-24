@@ -1,6 +1,6 @@
 {
   "name": "node-filesystem",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "description": "A node filesystem manager",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -51,7 +51,7 @@
     "flysystem"
   ],
   "engines": {
-    "node": ">=8.0"
+    "node": ">=24.0"
   },
   "scripts": {
     "build": "tsc",
