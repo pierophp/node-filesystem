@@ -11,9 +11,8 @@ import {
   PutObjectAclCommand,
   ListObjectsCommand,
 } from '@aws-sdk/client-s3';
-import * as ltrim from 'ltrim';
+import { trimStart, trimEnd } from 'lodash-es';
 import * as mime from 'mime';
-import * as rtrim from 'rtrim';
 import { AdapterInterface } from '../adapter.interface';
 import { ListContentsResponse } from '../response/list.contents.response';
 import { UtilHelper } from '../util.helper';
@@ -105,7 +104,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
 
     if (result.path.substr(-1) === '/') {
       result.type = 'dir';
-      result.path = rtrim(result.path, '/');
+      result.path = trimEnd(result.path, '/');
 
       return result;
     }
@@ -126,7 +125,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
     directory: string,
     recursive: boolean = false,
   ): Promise<ListContentsResponse[]> {
-    const prefix = this.applyPathPrefix(rtrim(directory, '/') + '/');
+    const prefix = this.applyPathPrefix(trimEnd(directory, '/') + '/');
     const s3Params: any = {
       Bucket: this.getBucket(),
       Prefix: prefix,
@@ -156,7 +155,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
 
       const responseEmulated = UtilHelper.emulateDirectories(response).filter(
         (item) => {
-          return rtrim(item.path, '/') !== rtrim(directory, '/');
+          return trimEnd(item.path, '/') !== trimEnd(directory, '/');
         },
       );
 
@@ -385,7 +384,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   }
 
   public async deleteDir(dirname: string): Promise<boolean> {
-    const prefix = rtrim(this.applyPathPrefix(dirname), '/') + '/';
+    const prefix = trimEnd(this.applyPathPrefix(dirname), '/') + '/';
 
     try {
       let continuationToken: string | undefined;
@@ -425,7 +424,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   }
 
   public async createDir(dirname: string, config?: any): Promise<any | false> {
-    return await this.upload(rtrim(dirname, '/') + '/', '', config);
+    return await this.upload(trimEnd(dirname, '/') + '/', '', config);
   }
 
   public async setVisibility(
@@ -451,7 +450,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
     try {
       const command = new ListObjectsCommand({
         Bucket: this.getBucket(),
-        Prefix: rtrim(location, '/') + '/',
+        Prefix: trimEnd(location, '/') + '/',
         MaxKeys: 1,
       });
       const data = await this.getClient().send(command);
@@ -466,7 +465,7 @@ export class S3Adapter extends AbstractAdapter implements AdapterInterface {
   }
 
   public applyPathPrefix(path) {
-    return ltrim(super.applyPathPrefix(path), '/');
+    return trimStart(super.applyPathPrefix(path), '/');
   }
 
   protected getOptionsFromConfig(config) {

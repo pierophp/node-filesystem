@@ -1,6 +1,5 @@
-import * as ltrim from 'ltrim';
+import { trimStart, trimEnd } from 'lodash-es';
 import * as mime from 'mime';
-import * as rtrim from 'rtrim';
 import { Storage } from '@google-cloud/storage';
 import { AdapterInterface } from '../adapter.interface';
 import { ListContentsResponse } from '../response/list.contents.response';
@@ -74,7 +73,7 @@ export class GoogleStorageAdapter
 
     if (result.path.substr(-1) === '/') {
       result.type = 'dir';
-      result.path = rtrim(result.path, '/');
+      result.path = trimEnd(result.path, '/');
       return result;
     }
 
@@ -100,7 +99,7 @@ export class GoogleStorageAdapter
     recursive: boolean = false,
   ): Promise<ListContentsResponse[]> {
     const prefix = this.applyPathPrefix(
-      directory == '/' ? '' : rtrim(directory, '/') + '/',
+      directory == '/' ? '' : trimEnd(directory, '/') + '/',
     );
 
     const storageParams: any = {
@@ -132,7 +131,7 @@ export class GoogleStorageAdapter
 
     const responseEmulated = UtilHelper.emulateDirectories(response).filter(
       (item) => {
-        return rtrim(item.path, '/') !== rtrim(directory, '/');
+        return trimEnd(item.path, '/') !== trimEnd(directory, '/');
       },
     );
 
@@ -303,7 +302,7 @@ export class GoogleStorageAdapter
   }
 
   public async deleteDir(dirname: string): Promise<boolean> {
-    const key = rtrim(this.applyPathPrefix(dirname), '/') + '/';
+    const key = trimEnd(this.applyPathPrefix(dirname), '/') + '/';
 
     const storageParams: any = {
       prefix: key,
@@ -321,7 +320,7 @@ export class GoogleStorageAdapter
   }
 
   public async createDir(dirname: string, config?: any): Promise<any | false> {
-    return await this.upload(rtrim(dirname, '/') + '/', '', config);
+    return await this.upload(trimEnd(dirname, '/') + '/', '', config);
   }
 
   public async setVisibility(
@@ -332,7 +331,7 @@ export class GoogleStorageAdapter
   }
 
   public applyPathPrefix(path) {
-    return ltrim(super.applyPathPrefix(path), '/');
+    return trimStart(super.applyPathPrefix(path), '/');
   }
 
   protected getOptionsFromConfig(config) {

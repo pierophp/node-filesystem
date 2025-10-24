@@ -1,6 +1,5 @@
-import * as ltrim from 'ltrim';
+import { trimStart, trimEnd } from 'lodash-es';
 import * as mime from 'mime';
-import * as rtrim from 'rtrim';
 import { S3Client } from 'bun';
 import { AdapterInterface } from '../adapter.interface';
 import { ListContentsResponse } from '../response/list.contents.response';
@@ -104,7 +103,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
 
     if (result.path.substr(-1) === '/') {
       result.type = 'dir';
-      result.path = rtrim(result.path, '/');
+      result.path = trimEnd(result.path, '/');
       return result;
     }
 
@@ -121,7 +120,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
     directory: string,
     recursive: boolean = false,
   ): Promise<ListContentsResponse[]> {
-    const prefix = this.applyPathPrefix(rtrim(directory, '/') + '/');
+    const prefix = this.applyPathPrefix(trimEnd(directory, '/') + '/');
     const response: ListContentsResponse[] = [];
 
     try {
@@ -156,7 +155,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
 
       const responseEmulated = UtilHelper.emulateDirectories(response).filter(
         (item) => {
-          return rtrim(item.path, '/') !== rtrim(directory, '/');
+          return trimEnd(item.path, '/') !== trimEnd(directory, '/');
         },
       );
 
@@ -386,7 +385,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
   }
 
   public async deleteDir(dirname: string): Promise<boolean> {
-    const prefix = rtrim(this.applyPathPrefix(dirname), '/') + '/';
+    const prefix = trimEnd(this.applyPathPrefix(dirname), '/') + '/';
 
     try {
       let continuationToken: string | undefined;
@@ -418,7 +417,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
   }
 
   public async createDir(dirname: string, config?: any): Promise<any | false> {
-    return await this.upload(rtrim(dirname, '/') + '/', '', config);
+    return await this.upload(trimEnd(dirname, '/') + '/', '', config);
   }
 
   public async setVisibility(
@@ -436,7 +435,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
   protected async doesDirectoryExist(location: string): Promise<boolean> {
     try {
       const result = await this.s3.list({
-        prefix: rtrim(location, '/') + '/',
+        prefix: trimEnd(location, '/') + '/',
         maxKeys: 1,
       });
 
@@ -447,7 +446,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
   }
 
   public applyPathPrefix(path) {
-    return ltrim(super.applyPathPrefix(path), '/');
+    return trimStart(super.applyPathPrefix(path), '/');
   }
 
   protected getOptionsFromConfig(config) {

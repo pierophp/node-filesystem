@@ -10,10 +10,9 @@ import {
   unlink,
   writeFile,
 } from 'fs-extra';
-import { merge } from 'lodash';
+import { merge, trimEnd } from 'lodash-es';
 import { paths } from 'node-dir';
 import { normalize } from 'path';
-import * as rtrim from 'rtrim';
 import { AdapterInterface } from '../adapter.interface';
 import { ListContentsResponse } from '../response/list.contents.response';
 import { UtilHelper } from '../util.helper';
@@ -61,11 +60,11 @@ export class LocalAdapter extends AbstractAdapter implements AdapterInterface {
     let files: any[] = [];
     if (!recursive) {
       files = await readdir(location, 'utf8');
-      files = files.map(file => {
+      files = files.map((file) => {
         return location + file;
       });
     } else {
-      files = await new Promise<any[]>(done => {
+      files = await new Promise<any[]>((done) => {
         paths(location, (err, paths) => {
           const fileList: string[] = [];
           for (const file of paths.files) {
@@ -106,7 +105,7 @@ export class LocalAdapter extends AbstractAdapter implements AdapterInterface {
     result.timestamp = Math.round(fileStat.mtimeMs / 1000);
 
     if (result.type === 'dir') {
-      result.path = rtrim(result.path, '/');
+      result.path = trimEnd(result.path, '/');
 
       return result;
     }

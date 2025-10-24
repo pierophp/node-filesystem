@@ -1,9 +1,8 @@
-import { uniq, difference, orderBy } from 'lodash';
-import * as rtrim from 'rtrim';
+import { uniq, difference, orderBy, trimEnd } from 'lodash-es';
 
 export class UtilHelper {
   public static pathinfo(path) {
-    const pathWithoutSlash = rtrim(path, '/');
+    const pathWithoutSlash = trimEnd(path, '/');
     const basename = pathWithoutSlash.split('/').splice(-1, 1)[0];
 
     const filenameList = basename.split('.');

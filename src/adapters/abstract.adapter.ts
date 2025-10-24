@@ -1,5 +1,4 @@
-import * as rtrim from 'rtrim';
-import * as ltrim from 'ltrim';
+import { trimEnd, trimStart } from 'lodash-es';
 
 export abstract class AbstractAdapter {
   protected pathPrefix: string | null;
@@ -12,7 +11,7 @@ export abstract class AbstractAdapter {
       return;
     }
 
-    this.pathPrefix = rtrim(prefix, '\\/') + this.pathSeparator;
+    this.pathPrefix = trimEnd(prefix, '\\/') + this.pathSeparator;
   }
 
   public getPathPrefix(): string | null {
@@ -24,7 +23,7 @@ export abstract class AbstractAdapter {
       return path;
     }
 
-    return this.getPathPrefix() + ltrim(path, '\\/');
+    return this.getPathPrefix() + trimStart(path, '\\/');
   }
 
   public removePathPrefix(path: string): string {

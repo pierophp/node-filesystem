@@ -1,6 +1,5 @@
-import { merge } from 'lodash';
 import { normalize } from 'path';
-import * as rtrim from 'rtrim';
+import { merge, trimEnd } from 'lodash-es';
 import {
   readdir,
   stat,
@@ -132,7 +131,7 @@ export class BunLocalAdapter
     result.timestamp = Math.round(fileStat.mtimeMs / 1000);
 
     if (result.type === 'dir') {
-      result.path = rtrim(result.path, '/');
+      result.path = trimEnd(result.path, '/');
       return result;
     }
 
