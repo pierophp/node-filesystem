@@ -1,9 +1,37 @@
 {
   "name": "node-filesystem",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "A node filesystem manager",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./src/adapters/local.adapter": {
+      "require": "./dist/adapters/local.adapter.js",
+      "import": "./dist/adapters/local.adapter.js",
+      "types": "./dist/adapters/local.adapter.d.ts"
+    },
+    "./src/adapters/s3.adapter": {
+      "require": "./dist/adapters/s3.adapter.js",
+      "import": "./dist/adapters/s3.adapter.js",
+      "types": "./dist/adapters/s3.adapter.d.ts"
+    },
+    "./src/adapters/bun.adapter": {
+      "require": "./dist/adapters/bun.adapter.js",
+      "import": "./dist/adapters/bun.adapter.js",
+      "types": "./dist/adapters/bun.adapter.d.ts"
+    },
+    "./src/adapters/google.storage.adapter": {
+      "require": "./dist/adapters/google.storage.adapter.js",
+      "import": "./dist/adapters/google.storage.adapter.js",
+      "types": "./dist/adapters/google.storage.adapter.d.ts"
+    },
+    "./dist/*": "./dist/*"
+  },
   "files": [
     "dist"
   ],
