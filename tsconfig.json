@@ -15,6 +15,7 @@
     "moduleResolution": "node",
     "outDir": "dist",
     "baseUrl": "./src/",
+    "skipLibCheck": true,
     "paths": {
       "tests/*": ["./../__tests__/*"],
       "*": ["./*"]

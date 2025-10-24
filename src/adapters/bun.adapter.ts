@@ -1,7 +1,7 @@
 import * as ltrim from 'ltrim';
 import * as mime from 'mime';
 import * as rtrim from 'rtrim';
-import type { S3Bucket } from 'bun';
+import { S3Client } from 'bun';
 import { AdapterInterface } from '../adapter.interface';
 import { ListContentsResponse } from '../response/list.contents.response';
 import { UtilHelper } from '../util.helper';
@@ -21,7 +21,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
 
   protected bucket: string;
   protected options: BunAdapterOptions;
-  protected s3: S3Bucket;
+  protected s3: S3Client;
 
   protected resultMap = {
     Body: 'contents',
@@ -45,7 +45,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
   constructor(options: BunAdapterOptions, prefix: string = '') {
     super();
 
-    if (typeof Bun === 'undefined' || !Bun.S3) {
+    if (typeof Bun === 'undefined' || !Bun.s3) {
       throw new Error(
         'BunAdapter requires Bun runtime with S3 support. Please use Bun >= 1.1.30',
       );
@@ -53,7 +53,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
 
     this.bucket = options.bucket;
     this.options = options;
-    this.s3 = new Bun.S3({
+    this.s3 = new S3Client({
       accessKeyId: options.accessKeyId,
       secretAccessKey: options.secretAccessKey,
       endpoint: options.endpoint,
@@ -69,13 +69,13 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
 
   public setBucket(bucket: string): void {
     this.bucket = bucket;
-    this.s3 = new Bun.S3({
+    this.s3 = new S3Client({
       ...this.options,
       bucket,
     });
   }
 
-  public getClient(): S3Bucket {
+  public getClient(): S3Client {
     return this.s3;
   }
 
@@ -134,17 +134,17 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
           continuationToken,
         });
 
-        if (result.objects) {
-          for (const obj of result.objects) {
+        if (result.contents) {
+          for (const obj of result.contents) {
             response.push(await this.normalizeResponse(obj, ''));
           }
         }
 
-        if (result.prefixes) {
-          for (const prefixObj of result.prefixes) {
+        if (result.commonPrefixes) {
+          for (const prefixObj of result.commonPrefixes) {
             response.push(
               await this.normalizeResponse(
-                { key: prefixObj, Key: prefixObj },
+                { key: prefixObj.prefix, Key: prefixObj.prefix },
                 '',
               ),
             );
@@ -206,14 +206,14 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
 
     try {
       const file = this.s3.file(key);
-      const data = await file.text();
+      const [data, stats] = await Promise.all([file.text(), file.stat()]);
 
       return await this.normalizeResponse(
         {
           Body: data,
           key,
-          size: file.size,
-          lastModified: file.lastModified,
+          size: stats.size,
+          lastModified: stats.lastModified,
         },
         path,
       );
@@ -276,12 +276,14 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
         return false;
       }
 
+      const stats = await file.stat();
+
       return await this.normalizeResponse(
         {
           key,
-          size: file.size,
-          lastModified: file.lastModified,
-          etag: file.etag,
+          size: stats.size,
+          lastModified: stats.lastModified,
+          etag: stats.etag,
         },
         path,
       );
@@ -395,12 +397,12 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
           continuationToken,
         });
 
-        if (!result.objects || result.objects.length === 0) {
+        if (!result.contents || result.contents.length === 0) {
           return true;
         }
 
         // Delete objects in batch
-        const deletePromises = result.objects.map((obj) =>
+        const deletePromises = result.contents.map((obj) =>
           this.s3.delete(obj.key),
         );
 
@@ -438,7 +440,7 @@ export class BunAdapter extends AbstractAdapter implements AdapterInterface {
         maxKeys: 1,
       });
 
-      return !!(result.objects && result.objects.length > 0);
+      return !!(result.contents && result.contents.length > 0);
     } catch (err) {
       return false;
     }
