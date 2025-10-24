@@ -1,6 +1,6 @@
 {
   "name": "node-filesystem",
-  "version": "0.0.26",
+  "version": "0.0.27",
   "description": "A node filesystem manager",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,6 +24,11 @@
       "require": "./dist/adapters/bun.adapter.js",
       "import": "./dist/adapters/bun.adapter.js",
       "types": "./dist/adapters/bun.adapter.d.ts"
+    },
+    "./src/adapters/bun.local.adapter": {
+      "require": "./dist/adapters/bun.local.adapter.js",
+      "import": "./dist/adapters/bun.local.adapter.js",
+      "types": "./dist/adapters/bun.local.adapter.d.ts"
     },
     "./src/adapters/google.storage.adapter": {
       "require": "./dist/adapters/google.storage.adapter.js",
@@ -50,9 +55,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "nyc mocha -A --opts ./mocha.opts --require ts-node/register -r tsconfig-paths/register",
-    "test:clear": "clear &&  yarn test",
-    "test:watch": "nodemon --exec yarn test:clear",
+    "test": "bun test",
+    "test:clear": "clear &&  bun test",
+    "test:watch": "bun test --watch",
     "npm:publish": "yarn build && npm publish",
     "coverage": "cd coverage && python -m SimpleHTTPServer 8182"
   },

@@ -1,5 +1,5 @@
-import * as rtrim from 'rtrim';
-import * as ltrim from 'ltrim';
+import rtrim from 'rtrim';
+import ltrim from 'ltrim';
 
 export abstract class AbstractAdapter {
   protected pathPrefix: string | null;
